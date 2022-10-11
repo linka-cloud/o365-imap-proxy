@@ -16,6 +16,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -23,7 +25,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"go.linka.cloud/mail-proxy/pkg/imap"
+	"go.linka.cloud/o365-imap-proxy/pkg/certs"
+	"go.linka.cloud/o365-imap-proxy/pkg/imap"
 )
 
 func NewImapCmd() *cobra.Command {
@@ -40,8 +43,9 @@ type ImapCmd struct {
 	Tenant       string `env:"TENANT" usage:"The Azure AD tenant id [$TENANT]"`
 	ClientID     string `env:"CLIENT_ID" usage:"The Azure App client id [$CLIENT_ID]"`
 	ClientSecret string `env:"CLIENT_SECRET" usage:"The Azure App client secret [$CLIENT_SECRET]"`
-	Address      string `env:"ADDRESS" default:":143" usage:"The address to listen on [$ADDRESS]"`
+	Address      string `env:"ADDRESS" usage:"The address to listen on [$ADDRESS] defaults to :143 or :993 if TLS is enabled"`
 	Debug        bool   `env:"DEBUG" usage:"Enable debug logging"`
+	TLS          bool   `env:"TLS" usage:"Enable TLS using generated self-signed certificate"`
 }
 
 func (c *ImapCmd) Run(cmd *cobra.Command, _ []string) error {
@@ -51,7 +55,24 @@ func (c *ImapCmd) Run(cmd *cobra.Command, _ []string) error {
 	if c.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-	p, err := imap.New(c.Tenant, c.ClientID, c.ClientSecret, c.Address)
+	var tlsConfig *tls.Config
+	if c.TLS {
+		cert, err := certs.Generate()
+		if err != nil {
+			return fmt.Errorf("failed to generate self-signed certificate: %w", err)
+		}
+		tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{*cert},
+		}
+	}
+	if c.Address == "" {
+		if c.TLS {
+			c.Address = ":993"
+		} else {
+			c.Address = ":143"
+		}
+	}
+	p, err := imap.New(c.Tenant, c.ClientID, c.ClientSecret, c.Address, tlsConfig)
 	if err != nil {
 		return err
 	}

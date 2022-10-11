@@ -29,7 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"go.linka.cloud/mail-proxy/pkg/oauth"
+	"go.linka.cloud/o365-imap-proxy/pkg/oauth"
 )
 
 const (
@@ -43,7 +43,7 @@ type Proxy interface {
 	Run(ctx context.Context) error
 }
 
-func New(tenant, clientID, clientSecret string, addr string) (Proxy, error) {
+func New(tenant, clientID, clientSecret string, addr string, tlsConfig *tls.Config) (Proxy, error) {
 	if tenant == "" {
 		return nil, errors.New("tenant is required")
 	}
@@ -54,12 +54,17 @@ func New(tenant, clientID, clientSecret string, addr string) (Proxy, error) {
 		return nil, errors.New("clientSecret is required")
 	}
 	if addr == "" {
-		addr = ":143"
+		if tlsConfig == nil {
+			addr = ":143"
+		} else {
+			addr = ":993"
+		}
 	}
 	return &proxy{
 		addr: addr,
 		auth: oauth.New(tenant, clientID, clientSecret),
 		log:  logrus.StandardLogger().WithField("service", "imap"),
+		tls:  tlsConfig,
 	}, nil
 }
 
@@ -67,6 +72,7 @@ type proxy struct {
 	addr string
 	auth oauth.Provider
 	log  logrus.FieldLogger
+	tls  *tls.Config
 }
 
 type state struct {
@@ -83,6 +89,10 @@ func (p *proxy) Run(ctx context.Context) error {
 		return err
 	}
 	defer list.Close()
+
+	if p.tls != nil {
+		list = tls.NewListener(list, p.tls)
+	}
 
 	conns := make(chan net.Conn)
 	go func() {

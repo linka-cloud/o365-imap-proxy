@@ -18,7 +18,7 @@ VERSION_SUFFIX = $(shell git diff --quiet || echo "-dev")
 VERSION = $(shell git describe --tags --exact-match 2> /dev/null || echo "`git describe --tags $$(git rev-list --tags --max-count=1) 2> /dev/null || echo v0.0.0`-`git rev-parse --short HEAD 2>/dev/null`")$(VERSION_SUFFIX)
 TAG = $(shell git describe --tags --exact-match 2> /dev/null)
 
-show-version:
+version: ## Show the current program version
 	@echo $(VERSION)
 
 IMAGE = linkacloud/o365-imap-proxy

@@ -1,0 +1,17 @@
+version: '3'
+services:
+  o365-imap-proxy:
+    image: linkacloud/o365-imap-proxy:v0.0.1
+    container_name: o365-imap-proxy
+    restart: always
+    command:
+    - --debug
+    ports:
+      - "143:143"
+    environment:
+      TENANT: ""
+      CLIENT_ID: ""
+      CLIENT_SECRET: ""
+      ADDRESS: ""
+      DEBUG: ""
+

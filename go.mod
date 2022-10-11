@@ -1,4 +1,4 @@
-module go.linka.cloud/mail-proxy
+module go.linka.cloud/o365-imap-proxy
 
 go 1.18
 
