@@ -38,4 +38,8 @@ ifneq ($(TAG),)
 endif
 
 .PHONY: docker
-docker: docker-build docker-push
+docker: docker-build docker-push ## Build and push docker image to the registry.
+
+
+help: ## Display this help.
+	@ggrep -Eh '\s##\s' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
