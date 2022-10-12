@@ -102,23 +102,32 @@ func (p *proxy) Run(ctx context.Context) error {
 				p.log.WithError(err).Error("Error accepting connection")
 				return
 			}
-			p.log.Infof("Accepted connection")
 			conns <- conn
 		}
 	}()
 
+	count := 0
+	var mu sync.Mutex
 	for {
 		select {
 		case conn := <-conns:
 			go func() {
 				defer conn.Close()
-				p.log.Infof("Connected to upstream server")
+				mu.Lock()
+				count++
+				p.log.WithField("connections", count).Infof("Accepted connection")
+				mu.Unlock()
+				defer func() {
+					mu.Lock()
+					count--
+					p.log.WithField("connections", count).Infof("Closed connection")
+					mu.Unlock()
+				}()
 				if err := p.handle(ctx, conn); err != nil {
 					if !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "connection reset by peer") {
 						p.log.WithError(err).Error("Error handling connection")
 					}
 				}
-				p.log.Infof("Closed connection")
 			}()
 		case <-ctx.Done():
 			return ctx.Err()
@@ -156,7 +165,7 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 			log.Errorf("failed to logout: %v", err)
 		}
 		if state.user != "" {
-			log.Infof("%s: Logged out", state.user)
+			log.Infof("Logged out %s", state.user)
 		} else {
 			log.Infof("Logged out")
 		}
@@ -169,7 +178,7 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 			if _, err := io.Copy(upstream, clientReader); err != nil {
 				return err
 			}
-			return nil
+			return io.EOF
 		}
 		mu.RUnlock()
 		fields, err := clientImapReader.ReadLine()
@@ -221,7 +230,7 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 			if _, err := io.Copy(client, upstreamReader); err != nil {
 				return err
 			}
-			return nil
+			return io.EOF
 		}
 		mu.RUnlock()
 		fields, err := upstreamImapReader.ReadLine()
