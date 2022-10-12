@@ -5,7 +5,6 @@ services:
     container_name: o365-imap-proxy
     restart: always
     command:
-    - --debug
     - --tls
     ports:
       - "993:993"
@@ -13,6 +12,4 @@ services:
       TENANT: ""
       CLIENT_ID: ""
       CLIENT_SECRET: ""
-      ADDRESS: ""
-      DEBUG: ""
 
