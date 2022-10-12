@@ -207,7 +207,7 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 		default:
 
 		}
-		log.WithField("command", cmd.Name).WithField("tag", cmd.Tag).Debugf("Sending command: %v", cmd.Arguments)
+		log.WithField("command", cmd.Name).WithField("tag", cmd.Tag).Debugf("Sending command: %v %v", cmd.Name, cmd.Arguments)
 		if err := cmd.WriteTo(upstreamImapReader.Writer); err != nil {
 			return err
 		}
@@ -246,13 +246,13 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 			mu.Unlock()
 		case Ok:
 			mu.Lock()
-			if state.authenticating && len(cmd.Arguments) > 1 && cmd.Arguments[1] == "AUTHENTICATE" {
+			if state.authenticating && len(cmd.Arguments) > 0 && cmd.Arguments[0] == "AUTHENTICATE" {
 				state.authenticating = false
 				state.authenticated = true
 			}
 			mu.Unlock()
 		}
-		log.WithField("command", cmd.Name).WithField("tag", cmd.Tag).Debugf("Received command: %v", cmd.Arguments)
+		log.WithField("command", cmd.Name).WithField("tag", cmd.Tag).Debugf("Received command: %v %v", cmd.Name, cmd.Arguments)
 		if err := cmd.WriteTo(clientImapReader.Writer); err != nil {
 			return err
 		}

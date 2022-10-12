@@ -6,8 +6,9 @@ services:
     restart: always
     command:
     - --debug
+    - --tls
     ports:
-      - "143:143"
+      - "993:993"
     environment:
       TENANT: ""
       CLIENT_ID: ""
