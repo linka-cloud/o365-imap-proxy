@@ -27,6 +27,8 @@ docker pull linkacloud/o365-imap-proxy:latest
 
 ## From source
 
+To build the binary from source, you need to have Go >= 1.18 installed on your machine.
+
 ```bash
 git clone https://github.com/linka-cloud/o365-imap-proxy.git
 cd o365-imap-proxy
@@ -75,7 +77,7 @@ docker run --name o365-imap-proxy \
 
 The proxy can be deployed using docker-compose:
 
-```docker-compose
+```yaml
 version: '3'
 services:
   o365-imap-proxy:
