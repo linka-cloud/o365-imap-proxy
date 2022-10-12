@@ -19,13 +19,13 @@ See [Microsoft docs](https://docs.microsoft.com/en-us/exchange/client-developer/
 
 ## Installation
 
-## Docker
+### Docker
 
 ```bash
 docker pull linkacloud/o365-imap-proxy:latest
 ```
 
-## From source
+### From source
 
 To build the binary from source, you need to have Go >= 1.18 installed on your machine.
 
