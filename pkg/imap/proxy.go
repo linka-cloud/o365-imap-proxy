@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -170,6 +171,46 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 			log.Infof("Logged out")
 		}
 	}()
+	getLoginCmd := func(ctx context.Context, user, pass string) (*imap.Command, error) {
+		var (
+			mailbox string
+			parts   = strings.Split(user, `\`)
+		)
+
+		switch len(parts) {
+		case 1:
+			// Username only
+			mailbox = user
+
+		case 2:
+			// user\shared_mailbox
+			user = parts[0]
+			mailbox = parts[1]
+
+		case 3:
+			// domain\user\shared_mailbox
+			return nil, errors.New("passing domain is unsupported")
+
+		default:
+			return nil, errors.New("invalid user format found")
+		}
+
+		log.Infof("Login attempt for %s", user)
+
+		state.user = user
+		state.token, err = p.auth.Login(ctx, user, pass)
+		if err != nil {
+			return nil, fmt.Errorf("getting token: %w", err)
+		}
+
+		log.Infof("Logged in %s", user)
+		xoauth2 := &commands.Authenticate{
+			Mechanism:       "XOAUTH2",
+			InitialResponse: []byte("user=" + mailbox + "\x01auth=Bearer " + state.token.AccessToken + "\x01\x01"),
+		}
+
+		return xoauth2.Command(), nil
+	}
 	proxyClient := func() error {
 		log := log.WithField("direction", "client->upstream")
 		mu.RLock()
@@ -199,18 +240,11 @@ func (p *proxy) handle(ctx context.Context, client net.Conn) error {
 				log.Infof("LOGIN command received with invalid number of arguments")
 				return errors.New("login: invalid number of arguments")
 			}
-			state.user = cmd.Arguments[0].(string)
-			log.Infof("Login attempt for %s", state.user)
-			state.token, err = p.auth.Login(ctx, cmd.Arguments[0].(string), cmd.Arguments[1].(string))
+			xoauth2, err := getLoginCmd(ctx, cmd.Arguments[0].(string), cmd.Arguments[1].(string))
 			if err != nil {
 				log.Infof("LOGIN command received with invalid credentials")
-				return errors.New("login: invalid credentials")
+				return fmt.Errorf("login: invalid credentials: %w", err)
 			}
-			log.Infof("Logged in %s", state.user)
-			xoauth2 := (&commands.Authenticate{
-				Mechanism:       "XOAUTH2",
-				InitialResponse: []byte("user=" + cmd.Arguments[0].(string) + "\x01auth=Bearer " + state.token.AccessToken + "\x01\x01"),
-			}).Command()
 			xoauth2.Tag = cmd.Tag
 			cmd = xoauth2
 		default:
